@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Romi in Seville: Dashboard</title>
+    
+    <!-- Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Leaflet (Map) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f8fafc; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Leaflet Fixes */
+        .leaflet-pane { z-index: 10 !important; }
+        .leaflet-top, .leaflet-bottom { z-index: 20 !important; }
+        
+        /* Sticky Header Z-Index */
+        .app-header { z-index: 1000; }
+        
+        /* Containers */
+        #map-container { height: 300px; width: 100%; border-radius: 0.75rem; z-index: 1; }
+        .photo-frame { height: 200px; width: 100%; object-fit: cover; border-radius: 0.75rem; transition: transform 0.3s; }
+        .photo-frame:hover { transform: scale(1.02); }
+        
+        /* Timeline styling */
+        .timeline-line { position: absolute; left: 24px; top: 0; bottom: 0; width: 3px; background: #e2e8f0; z-index: 0; }
+        
+        /* Horizontal Timeline Interactive Items */
+        .h-timeline-item { transition: all 0.2s; }
+        .h-timeline-item:hover { transform: translateY(-2px); }
+        .h-timeline-item.active .h-dot { background-color: #f97316; transform: scale(1.2); box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2); }
+        .h-timeline-item.active span { color: #f97316; font-weight: bold; }
+
+        /* Fade Animation */
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- 1. Global Header (Fixed) -->
+    <header class="app-header bg-white shadow-sm border-b border-slate-200 fixed top-0 w-full h-16 flex items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center">
+            <div class="bg-slate-800 text-white p-2 rounded-lg mr-3 shadow-sm">
+                <i class="fas fa-plane"></i>
+            </div>
+            <div>
+                <h1 class="text-lg sm:text-xl font-bold text-slate-900 leading-tight">Romi in Seville</h1>
+                <p class="text-xs text-slate-500 hidden sm:block">11 Feb - 27 Feb, 2025</p>
+            </div>
+        </div>
+
+        <div class="flex space-x-2">
+             <button onclick="toggleLogistics(false)" class="px-4 py-2 rounded-lg text-sm font-bold bg-slate-800 text-white shadow hover:bg-slate-700 transition-colors">
+                <i class="fas fa-calendar-alt mr-2"></i>Dashboard
+            </button>
+            <button onclick="toggleLogistics(true)" class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">
+                <i class="fas fa-suitcase mr-2"></i>Logística
+            </button>
+        </div>
+    </header>
+
+    <!-- Spacer -->
+    <div class="h-20 w-full"></div>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 w-full relative">
+
+        <!-- DASHBOARD VIEW -->
+        <div id="view-dashboard" class="space-y-6 fade-in">
+            
+            <!-- 1. Top Section: Global Timeline Banner -->
+            <div class="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm relative overflow-hidden">
+                <div class="flex flex-col md:flex-row md:items-end justify-between mb-6">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">Calendario del Viaje</h2>
+                        <p class="text-slate-500 text-sm">Haz clic en los días para filtrar la agenda detallada.</p>
+                    </div>
+                    <div class="mt-4 md:mt-0 font-mono text-sm bg-slate-100 px-3 py-1 rounded text-slate-600">
+                        <i class="far fa-clock mr-1"></i> Faltan: <span id="countdown-timer" class="font-bold text-orange-600">--d --h</span>
+                    </div>
+                </div>
+                
+                <!-- Interactive Horizontal Timeline -->
+                <div class="pt-2 border-t border-slate-100">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] uppercase font-bold text-orange-600 bg-orange-50 px-2 rounded">Inicio: Día 11 (20:00h)</span>
+                    </div>
+                    <div class="flex justify-between items-center px-2 text-xs font-mono text-slate-400 overflow-x-auto pb-4 no-scrollbar" id="global-timeline-container">
+                        <!-- JS injected buttons -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Middle Section: Phase Filters -->
+            <div class="flex flex-wrap gap-2 justify-center sm:justify-start sticky top-20 z-30 py-2 bg-slate-50/90 backdrop-blur-sm rounded-lg">
+                <button onclick="filterPhase('all')" id="filter-all" class="filter-btn px-4 py-2 rounded-full text-sm font-bold bg-slate-800 text-white shadow-md transition-all">
+                    Todo el Viaje
+                </button>
+                <button onclick="filterPhase('phase1')" id="filter-phase1" class="filter-btn px-4 py-2 rounded-full text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:text-orange-600 hover:border-orange-200 transition-all">
+                    1. Sevilla
+                </button>
+                <button onclick="filterPhase('phase2')" id="filter-phase2" class="filter-btn px-4 py-2 rounded-full text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:text-blue-600 hover:border-blue-200 transition-all">
+                    2. Tenerife
+                </button>
+                <button onclick="filterPhase('phase3')" id="filter-phase3" class="filter-btn px-4 py-2 rounded-full text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:text-red-600 hover:border-red-200 transition-all">
+                    3. Granada
+                </button>
+            </div>
+
+            <!-- 3. Bottom Grid: Events & Details -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                <!-- LEFT: Event List (Scrollable) -->
+                <div class="lg:col-span-7">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 min-h-[500px]">
+                        <h3 id="list-title" class="text-lg font-bold text-slate-800 mb-6 border-b pb-2">Agenda Detallada</h3>
+                        <div class="relative pl-4" id="timeline-container">
+                            <div class="timeline-line"></div>
+                            <div id="timeline-list" class="space-y-6 relative z-10">
+                                <!-- Events Injected Here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- RIGHT: Sticky Details -->
+                <div class="lg:col-span-5 relative">
+                    <div class="sticky top-32 space-y-6">
+                        
+                        <!-- Detail Card -->
+                        <div id="detail-card" class="bg-white rounded-xl shadow-lg border border-slate-200 p-6 transition-all duration-300 relative overflow-hidden group">
+                            <div class="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                <i id="bg-icon" class="fas fa-map-marked-alt text-8xl"></i>
+                            </div>
+                            
+                            <div class="relative z-10">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div>
+                                        <span id="card-date" class="text-xs font-bold uppercase bg-slate-100 text-slate-500 px-2 py-1 rounded">INFO</span>
+                                        <h3 id="card-title" class="text-xl font-bold text-slate-900 mt-2">Selecciona un evento</h3>
+                                    </div>
+                                    <div id="card-icon" class="h-12 w-12 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 text-xl shadow-sm">
+                                        <i class="fas fa-hand-pointer"></i>
+                                    </div>
+                                </div>
+                                <p id="card-desc" class="text-slate-600 text-sm mb-6 leading-relaxed">Haz clic en la lista de la izquierda para ver los detalles aquí.</p>
+                                
+                                <!-- Niñómetro -->
+                                <div id="ninometro-box" class="bg-slate-50 rounded-lg p-3 mb-4 hidden border border-slate-100">
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-xs font-bold text-slate-700 uppercase"><i class="fas fa-child mr-1"></i>Niñómetro</span>
+                                        <div id="ninometro-stars" class="text-xs"></div>
+                                    </div>
+                                    <div class="w-full bg-slate-200 rounded-full h-1.5">
+                                        <div id="ninometro-bar" class="bg-green-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Data Points -->
+                                <div id="card-extras" class="space-y-2 hidden">
+                                    <div class="flex items-center text-sm p-2 bg-slate-50 rounded border border-slate-100">
+                                        <i class="fas fa-map-pin w-6 text-center text-red-500 mr-2"></i>
+                                        <span id="card-loc" class="font-medium text-slate-700">Ubicación</span>
+                                    </div>
+                                    <div class="flex items-center text-sm p-2 bg-slate-50 rounded border border-slate-100">
+                                        <i class="fas fa-utensils w-6 text-center text-orange-500 mr-2"></i>
+                                        <span id="card-food" class="font-medium text-slate-700">Comida</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Photo Gallery (Replaces Chart) -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center">
+                                <i class="fas fa-camera mr-2"></i> Fotos Relacionadas
+                            </h4>
+                            <div class="relative overflow-hidden rounded-lg bg-slate-100 h-48">
+                                <img id="location-photo" src="https://images.unsplash.com/photo-1550355291-64384e5b47a5?auto=format&fit=crop&w=800" class="photo-frame object-cover w-full h-full" alt="Lugar">
+                                <div class="absolute bottom-0 left-0 bg-gradient-to-t from-black/70 to-transparent w-full p-2">
+                                    <span id="photo-caption" class="text-white text-xs font-bold ml-2">Sevilla</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Map -->
+                        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-1">
+                            <div id="map-container" class="z-0"></div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LOGISTICS VIEW (Hidden by default) -->
+        <div id="view-logistics" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 fade-in">
+             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-blue-500">
+                <h3 class="text-lg font-bold text-slate-800 mb-4"><i class="fas fa-plane mr-2 text-blue-500"></i>Vuelos</h3>
+                <div class="space-y-4">
+                    <div class="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                        <div class="flex justify-between mb-2">
+                            <span class="font-bold text-blue-900">Sevilla (SVQ)</span>
+                            <i class="fas fa-long-arrow-alt-right text-blue-400"></i>
+                            <span class="font-bold text-blue-900">Tenerife (TFN)</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-blue-700">
+                            <span>16 Feb - 18:25</span>
+                            <span class="font-mono bg-white px-2 rounded">VY3258</span>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                        <div class="flex justify-between mb-2">
+                            <span class="font-bold text-blue-900">Tenerife (TFN)</span>
+                            <i class="fas fa-long-arrow-alt-right text-blue-400"></i>
+                            <span class="font-bold text-blue-900">Sevilla (SVQ)</span>
+                        </div>
+                        <div class="flex justify-between text-sm text-blue-700">
+                            <span>20 Feb - 20:20</span>
+                            <span class="font-mono bg-white px-2 rounded">VY3259</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-purple-500">
+                <h3 class="text-lg font-bold text-slate-800 mb-4"><i class="fas fa-bed mr-2 text-purple-500"></i>Alojamientos</h3>
+                <div class="space-y-4">
+                     <div class="flex items-start">
+                        <div class="bg-purple-100 text-purple-600 p-2 rounded mr-3"><i class="fas fa-hotel"></i></div>
+                        <div>
+                            <h4 class="font-bold text-slate-800">Meliá Costa Atlantis</h4>
+                            <p class="text-sm text-slate-500">Puerto de la Cruz, Tenerife. (16-20 Feb)</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start">
+                        <div class="bg-green-100 text-green-600 p-2 rounded mr-3"><i class="fas fa-house-user"></i></div>
+                        <div>
+                            <h4 class="font-bold text-slate-800">Noche en Granada</h4>
+                            <p class="text-sm text-slate-500">Alojamiento reservado para el 23 de Feb.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+             <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-orange-500 md:col-span-2">
+                <h3 class="text-lg font-bold text-slate-800 mb-4"><i class="fas fa-utensils mr-2 text-orange-500"></i>Restaurantes Top</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="border rounded-lg p-3">
+                        <div class="text-xs font-bold text-orange-500 uppercase">Sevilla - Triana</div>
+                        <div class="font-bold">Bar Triana</div>
+                    </div>
+                    <div class="border rounded-lg p-3 bg-orange-50 border-orange-200">
+                        <div class="text-xs font-bold text-orange-600 uppercase">Dos Hermanas</div>
+                        <div class="font-bold text-slate-900">Pizzetari</div>
+                        <div class="text-xs text-slate-500">CC Entre Nasas</div>
+                    </div>
+                    <div class="border rounded-lg p-3">
+                        <div class="text-xs font-bold text-orange-500 uppercase">Sevilla - Centro</div>
+                        <div class="font-bold">El Baratillo</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- JS Logic -->
+    <script>
+        // --- DATA ---
+        // Photos used from Unsplash (Stable IDs)
+        const PHOTOS = {
+            sevilla: "https://images.unsplash.com/photo-1550355291-64384e5b47a5?auto=format&fit=crop&w=800",
+            triana: "https://images.unsplash.com/photo-1562678608-2503250269f8?auto=format&fit=crop&w=800",
+            italica: "https://images.unsplash.com/photo-1564750974070-e478202d6b7b?auto=format&fit=crop&w=800", // Generic ruins
+            cadiz: "https://images.unsplash.com/photo-1596443686812-2f45229eebc3?auto=format&fit=crop&w=800",
+            tenerife: "https://images.unsplash.com/photo-1543854589-3ae8e684eb2e?auto=format&fit=crop&w=800",
+            carnaval: "https://images.unsplash.com/photo-1551696054-c9182379532e?auto=format&fit=crop&w=800", // Fireworks/Festive
+            granada: "https://images.unsplash.com/photo-1620668078864-a53c51873111?auto=format&fit=crop&w=800",
+            alhambra: "https://images.unsplash.com/photo-1598387063462-2b63486c8d0e?auto=format&fit=crop&w=800",
+            travel: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800"
+        };
+
+        const tripData = {
+            phase1: {
+                title: "Etapa 1: Sevilla",
+                color: "orange",
+                map: { center: [37.3891, -5.9845], zoom: 9 },
+                events: [
+                    { id: 11, day: "11 Feb", title: "Llegada", desc: "Llegada a Santa Justa (20:00).", icon: "fa-train", loc: "Estación Santa Justa", food: "Libre", kids: 3, type: "Travel", img: PHOTOS.sevilla },
+                    { id: 12, day: "12 Feb", title: "Día de Triana y Relax", desc: "Paseo por Triana. Tarde de juegos. Cena en Pizzetari.", icon: "fa-guitar", loc: "Triana / CC Entre Nasas", food: "Bar Triana / Pizzetari", kids: 5, type: "Culture", img: PHOTOS.triana },
+                    { id: 13, day: "13 Feb", title: "Itálica y Saltos", desc: "Ruinas romanas y Sevilla Jump.", icon: "fa-monument", loc: "Santiponce / Camas", food: "La Choza de Manuela", kids: 5, type: "Active", img: PHOTOS.italica },
+                    { id: 14, day: "14 Feb", title: "Cádiz", desc: "Excursión a la playa y pescadito frito.", icon: "fa-water", loc: "Cádiz Capital", food: "Freiduría", kids: 5, type: "Travel", img: PHOTOS.cadiz },
+                    { id: 15, day: "15 Feb", title: "Sevilla Monumental", desc: "Alcázar, Catedral y Plaza España.", icon: "fa-camera", loc: "Centro Sevilla", food: "El Baratillo", kids: 4, type: "Culture", img: PHOTOS.sevilla }
+                ]
+            },
+            phase2: {
+                title: "Etapa 2: Tenerife",
+                color: "blue",
+                map: { center: [28.41, -16.54], zoom: 10 },
+                events: [
+                    { id: 16, day: "16 Feb", title: "Vuelo a TFN", desc: "Salida 18:25. Llegada y Dragnaval.", icon: "fa-plane-departure", loc: "Aeropuerto / Puerto Cruz", food: "Hotel", kids: 3, type: "Travel", img: PHOTOS.travel },
+                    { id: 17, day: "17 Feb", title: "Carnaval", desc: "Paseo San Telmo y Coso Apoteosis.", icon: "fa-mask", loc: "Puerto de la Cruz", food: "Local", kids: 5, type: "Party", img: PHOTOS.carnaval },
+                    { id: 18, day: "18 Feb", title: "Parque Acuático", desc: "Aqualand o Siam Park.", icon: "fa-swimmer", loc: "Costa Adeje", food: "En Parque", kids: 5, type: "Active", img: PHOTOS.tenerife },
+                    { id: 19, day: "19 Feb", title: "Relax y Spa", desc: "Día de descanso en hotel y Spa.", icon: "fa-spa", loc: "Meliá Costa Atlantis", food: "Hotel", kids: 4, type: "Relax", img: PHOTOS.tenerife },
+                    { id: 20, day: "20 Feb", title: "Regreso", desc: "Lago Martiánez y Vuelo a Sevilla.", icon: "fa-plane-arrival", loc: "Lago Martiánez", food: "Zona Lago", kids: 5, type: "Travel", img: PHOTOS.travel }
+                ]
+            },
+            phase3: {
+                title: "Etapa 3: Granada",
+                color: "red",
+                map: { center: [37.25, -4.5], zoom: 8 },
+                events: [
+                    { id: 21, day: "21 Feb", title: "Acuario", desc: "Acuario de Sevilla y Parque Magallanes.", icon: "fa-fish", loc: "Muelle Delicias", food: "Zona Río", kids: 5, type: "Relax", img: PHOTOS.sevilla },
+                    { id: 22, day: "22 Feb", title: "Circo y Copas", desc: "Muelle NY y Cirque du Soleil.", icon: "fa-ticket-alt", loc: "Muelle NY", food: "Picoteo", kids: 4, type: "Party", img: PHOTOS.sevilla },
+                    { id: 23, day: "23 Feb", title: "Rumbo a Granada", desc: "Coche a Granada y Termas.", icon: "fa-car", loc: "Granada", food: "Tapas", kids: 2, type: "Travel", img: PHOTOS.travel },
+                    { id: 24, day: "24 Feb", title: "Alhambra y Cumple", desc: "Visita Alhambra. Cena Cumpleaños en Sevilla.", icon: "fa-birthday-cake", loc: "Granada / Sevilla", food: "Cena Cumple", kids: 3, type: "Party", img: PHOTOS.alhambra },
+                    { id: 25, day: "25 Feb", title: "Gym y Bolos", desc: "Recuperación y Bowling.", icon: "fa-bowling-ball", loc: "Dos Hermanas", food: "Entre Nasas", kids: 4, type: "Active", img: PHOTOS.sevilla },
+                    { id: 26, day: "26 Feb", title: "Despedida", desc: "Triana, Setas y Cena Final.", icon: "fa-users", loc: "Centro / Triana", food: "Cena Despedida", kids: 3, type: "Culture", img: PHOTOS.triana },
+                    { id: 27, day: "27 Feb", title: "Fin del Viaje", desc: "Regreso a casa.", icon: "fa-check", loc: "-", food: "-", kids: 1, type: "Travel", img: PHOTOS.travel }
+                ]
+            }
+        };
+
+        // --- STATE ---
+        let currentMap = null;
+        let allEvents = [];
+        // Flatten events for easy access
+        Object.values(tripData).forEach(p => allEvents.push(...p.events));
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initCountdown();
+            initGlobalTimeline();
+            initMap();
+            // Load Phase 1 by default
+            filterPhase('all');
+        });
+
+        // --- NAVIGATION ---
+        function toggleLogistics(show) {
+            const db = document.getElementById('view-dashboard');
+            const logs = document.getElementById('view-logistics');
+            if(show) {
+                db.classList.add('hidden');
+                logs.classList.remove('hidden');
+            } else {
+                db.classList.remove('hidden');
+                logs.classList.add('hidden');
+            }
+        }
+
+        // --- FILTERING ---
+        function filterPhase(filterKey) {
+            // UI Buttons
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.className = "filter-btn px-4 py-2 rounded-full text-sm font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-all";
+            });
+            
+            const activeBtn = document.getElementById(`filter-${filterKey}`);
+            activeBtn.className = "filter-btn px-4 py-2 rounded-full text-sm font-bold bg-slate-800 text-white shadow-md transform scale-105";
+            if(filterKey === 'phase1') activeBtn.classList.add('bg-orange-600', 'border-orange-600');
+            if(filterKey === 'phase2') activeBtn.classList.add('bg-blue-600', 'border-blue-600');
+            if(filterKey === 'phase3') activeBtn.classList.add('bg-red-600', 'border-red-600');
+
+            // Filter Events
+            let eventsToShow = [];
+            let mapCenter = [37.38, -5.98]; // Default Sev
+            let zoom = 6;
+
+            if (filterKey === 'all') {
+                eventsToShow = allEvents;
+                document.getElementById('list-title').innerText = "Agenda Completa (11 - 27 Feb)";
+            } else {
+                const data = tripData[filterKey];
+                eventsToShow = data.events;
+                mapCenter = data.map.center;
+                zoom = data.map.zoom;
+                document.getElementById('list-title').innerText = data.title;
+            }
+
+            renderEventList(eventsToShow, filterKey);
+            
+            // Map Update (Fly to region)
+            if(currentMap) currentMap.flyTo(mapCenter, zoom, { duration: 1.5 });
+
+            // Highlight first event of list in timeline
+            if(eventsToShow.length > 0) showDetail(eventsToShow[0]);
+        }
+
+        // Go to specific day via Top Timeline
+        function goToDay(day) {
+            // Find event
+            const evt = allEvents.find(e => e.id === day);
+            if(!evt) return;
+
+            // Highlight in top bar
+            document.querySelectorAll('.h-timeline-item').forEach(b => b.classList.remove('active'));
+            document.getElementById(`h-day-${day}`).classList.add('active');
+
+            // Determine Phase
+            let phase = 'phase1';
+            if (day >= 16 && day <= 20) phase = 'phase2';
+            if (day >= 21) phase = 'phase3';
+
+            // Filter List to that phase (or all, but scrolling to event)
+            // User requested: clicking a day shows info below but bar maintains.
+            // Let's switch to the specific phase so list is focused
+            filterPhase(phase);
+            
+            // Show details
+            showDetail(evt);
+
+            // Scroll list to event
+            setTimeout(() => {
+                const el = document.getElementById(`evt-card-${day}`);
+                if(el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+
+        // --- RENDERERS ---
+        function renderEventList(events, themeKey) {
+            const list = document.getElementById('timeline-list');
+            list.innerHTML = '';
+            
+            events.forEach((evt) => {
+                // Determine color based on event phase logic if "all"
+                let color = 'slate';
+                if(evt.id <= 15) color = 'orange';
+                else if(evt.id <= 20) color = 'blue';
+                else color = 'red';
+
+                const item = document.createElement('div');
+                item.id = `evt-card-${evt.id}`;
+                item.className = "relative pl-12 group cursor-pointer transition-all duration-300";
+                item.onclick = () => { showDetail(evt); };
+
+                item.innerHTML = `
+                    <div class="absolute left-4 top-4 w-4 h-4 bg-white border-4 border-${color}-400 rounded-full z-10 group-hover:scale-125 transition-transform shadow-sm"></div>
+                    <div class="absolute left-[23px] top-8 bottom-[-24px] w-0.5 bg-slate-100 z-0"></div>
+                    
+                    <div class="bg-slate-50 border border-slate-100 p-4 rounded-xl hover:bg-white hover:shadow-md hover:border-${color}-200 transition-all">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-bold text-${color}-600 uppercase tracking-wide">${evt.day}</span>
+                            <i class="fas ${evt.icon} text-slate-300"></i>
+                        </div>
+                        <h4 class="font-bold text-slate-800 text-lg leading-tight">${evt.title}</h4>
+                        <p class="text-sm text-slate-500 truncate mt-1">${evt.desc}</p>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function showDetail(evt) {
+            // determine color
+            let color = 'orange';
+            if(evt.id >= 16) color = 'blue';
+            if(evt.id >= 21) color = 'red';
+
+            // Update Text
+            document.getElementById('card-title').innerText = evt.title;
+            document.getElementById('card-desc').innerText = evt.desc;
+            document.getElementById('card-date').innerText = evt.day;
+            document.getElementById('card-date').className = `text-xs font-bold uppercase bg-${color}-100 text-${color}-600 px-2 py-1 rounded`;
+            
+            // Icon
+            document.getElementById('card-icon').innerHTML = `<i class="fas ${evt.icon}"></i>`;
+            document.getElementById('card-icon').className = `h-12 w-12 rounded-full bg-${color}-50 flex items-center justify-center text-${color}-500 text-xl`;
+
+            // Photo
+            const img = document.getElementById('location-photo');
+            img.src = evt.img;
+            document.getElementById('photo-caption').innerText = evt.loc.split(' ')[0] || "Lugar";
+
+            // Niñómetro
+            const nBox = document.getElementById('ninometro-box');
+            nBox.classList.remove('hidden');
+            const pct = (evt.kids / 5) * 100;
+            document.getElementById('ninometro-bar').style.width = `${pct}%`;
+            document.getElementById('ninometro-bar').className = `h-1.5 rounded-full transition-all duration-500 bg-${pct >= 80 ? 'green' : (pct >= 60 ? 'yellow' : 'red')}-500`;
+            
+            let stars = '';
+            for(let i=0; i<evt.kids; i++) stars += '<i class="fas fa-star text-[10px] mr-0.5"></i>';
+            document.getElementById('ninometro-stars').innerHTML = stars;
+            document.getElementById('ninometro-stars').className = `text-xs text-${pct >= 80 ? 'green' : (pct >= 60 ? 'yellow' : 'red')}-500`;
+
+            // Extras
+            document.getElementById('card-extras').classList.remove('hidden');
+            document.getElementById('card-loc').innerText = evt.loc;
+            document.getElementById('card-food').innerText = evt.food;
+
+            // Highlight top timeline
+            document.querySelectorAll('.h-timeline-item').forEach(b => b.classList.remove('active'));
+            const topBtn = document.getElementById(`h-day-${evt.id}`);
+            if(topBtn) topBtn.classList.add('active');
+        }
+
+        function initMap() {
+            if(currentMap) return;
+            currentMap = L.map('map-container', { zoomControl: false }).setView([37.38, -5.98], 6);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: ''
+            }).addTo(currentMap);
+        }
+
+        // --- HELPERS ---
+        function initGlobalTimeline() {
+            const container = document.getElementById('global-timeline-container');
+            let html = '';
+            for(let i=11; i<=27; i++) {
+                // Determine phase color dot
+                let dotClass = "bg-orange-300";
+                if(i>=16) dotClass = "bg-blue-300";
+                if(i>=21) dotClass = "bg-red-300";
+
+                html += `
+                    <button id="h-day-${i}" onclick="goToDay(${i})" class="h-timeline-item flex flex-col items-center mx-2 focus:outline-none group p-2 rounded">
+                        <span class="h-dot block w-2 h-2 rounded-full ${dotClass} mb-1 transition-all"></span>
+                        <span class="text-[10px] text-slate-400 group-hover:text-slate-600 transition-colors">${i}</span>
+                    </button>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        function initCountdown() {
+            const target = new Date('2025-02-11T20:00:00').getTime();
+            setInterval(() => {
+                const now = new Date().getTime();
+                const dist = target - now;
+                if(dist < 0) {
+                    document.getElementById('countdown-timer').innerText = "¡En viaje!";
+                } else {
+                    const d = Math.floor(dist / (1000 * 60 * 60 * 24));
+                    const h = Math.floor((dist % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    document.getElementById('countdown-timer').innerText = `${d}d ${h}h`;
+                }
+            }, 1000 * 60 * 60);
+        }
+    </script>
+</body>
+</html>
