@@ -3,692 +3,278 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Romi in Seville | Travel OS 2026</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Romi in Seville: Itinerario 2025</title>
 
-    <!-- Dependencies -->
+    <!-- Utilities -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-
-    <!-- Leaflet (Map) -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <style>
-        :root {
-            --bg-dark: #0a0b10;
-            --card-glass: rgba(255, 255, 255, 0.05);
-            --card-border: rgba(255, 255, 255, 0.1);
-            --accent-sevilla: #ff7e5f;
-            --accent-tenerife: #00d2ff;
-            --accent-granada: #ff416c;
-            --text-main: #ffffff;
-            --text-muted: #94a3b8;
-            --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-        }
-
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
         body {
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            font-family: 'Outfit', sans-serif;
-            overflow-x: hidden;
-            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9;
+            color: #1e293b;
         }
 
-        /* --- BACKGROUND BLOBS --- */
-        .blob {
-            position: fixed;
-            width: 300px;
-            height: 300px;
-            background: linear-gradient(135deg, var(--accent-sevilla), #feb47b);
-            filter: blur(80px);
-            border-radius: 50%;
-            z-index: -1;
-            opacity: 0.15;
-            transition: all 1s ease;
-        }
-
-        #blob-1 {
-            top: -50px;
-            right: -50px;
-        }
-
-        #blob-2 {
-            bottom: -50px;
-            left: -50px;
-            background: var(--accent-tenerife);
-        }
-
-        /* --- HEADER --- */
-        header {
-            padding: 24px 20px 10px;
+        .sticky-nav {
             position: sticky;
             top: 0;
-            background: rgba(10, 11, 16, 0.8);
-            backdrop-filter: blur(10px);
-            z-index: 1000;
+            z-index: 50;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border-bottom: 1px solid #e2e8f0;
         }
 
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .day-card {
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s;
         }
 
-        .brand h1 {
-            margin: 0;
-            font-size: 24px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            background: linear-gradient(to right, #fff, #94a3b8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .day-card:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
         }
 
-        .brand p {
-            margin: 0;
-            font-size: 12px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        .phase-indicator {
+            width: 4px;
+            border-radius: 2px;
         }
 
-        /* --- DATE SCROLLER --- */
-        .date-scroller {
-            display: flex;
-            overflow-x: auto;
-            padding: 15px 0;
-            gap: 12px;
-            scroll-snap-type: x mandatory;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-        }
-
-        .date-scroller::-webkit-scrollbar {
-            display: none;
-        }
-
-        .date-item {
-            flex: 0 0 60px;
-            height: 80px;
-            background: var(--card-glass);
-            border: 1px solid var(--card-border);
-            border-radius: 16px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            scroll-snap-align: start;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            cursor: pointer;
-        }
-
-        .date-item.active {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: var(--accent-sevilla);
-            transform: scale(1.05);
-            box-shadow: 0 0 20px rgba(255, 126, 95, 0.3);
-        }
-
-        .date-item .day-num {
-            font-size: 18px;
-            font-weight: 800;
-        }
-
-        .date-item .day-month {
-            font-size: 10px;
-            color: var(--text-muted);
-        }
-
-        /* --- PHASES BAR --- */
-        .phases-bar {
-            display: flex;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .phase-pill {
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            background: var(--card-glass);
-            border: 1px solid var(--card-border);
-            color: var(--text-muted);
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .phase-pill.active[data-phase="phase1"] {
-            background: var(--accent-sevilla);
-            color: white;
-            border-color: var(--accent-sevilla);
-        }
-
-        .phase-pill.active[data-phase="phase2"] {
-            background: var(--accent-tenerife);
-            color: white;
-            border-color: var(--accent-tenerife);
-        }
-
-        .phase-pill.active[data-phase="phase3"] {
-            background: var(--accent-granada);
-            color: white;
-            border-color: var(--accent-granada);
-        }
-
-        /* --- MAIN FEED --- */
-        main {
-            padding: 0 20px 100px;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .event-card {
-            position: relative;
-            background: var(--card-glass);
-            border: 1px solid var(--card-border);
-            border-radius: 24px;
-            margin-bottom: 20px;
-            overflow: hidden;
-            transition: transform 0.3s;
-            animation: cardAppear 0.5s ease backwards;
-        }
-
-        @keyframes cardAppear {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .card-img-wrapper {
-            height: 160px;
-            position: relative;
-        }
-
-        .card-img-wrapper img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            filter: brightness(0.7);
-        }
-
-        .card-img-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 15px;
-            background: linear-gradient(to top, rgba(10, 11, 16, 0.9), transparent);
-        }
-
-        .card-type {
-            font-size: 10px;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            background: var(--accent-sevilla);
-            padding: 2px 8px;
+        .info-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 2px 6px;
             border-radius: 4px;
-            display: inline-block;
-            margin-bottom: 5px;
-        }
-
-        .card-content {
-            padding: 15px;
-        }
-
-        .card-title {
-            font-size: 20px;
-            font-weight: 800;
-            margin-bottom: 5px;
-        }
-
-        .card-desc {
-            font-size: 14px;
-            color: var(--text-muted);
-            line-height: 1.5;
-        }
-
-        /* --- NINOMETRO 2.0 --- */
-        .ninometro-container {
-            margin-top: 15px;
-            background: rgba(0, 0, 0, 0.2);
-            padding: 12px;
-            border-radius: 16px;
-        }
-
-        .nino-header {
-            display: flex;
-            justify-content: space-between;
-            font-size: 10px;
-            font-weight: 800;
             text-transform: uppercase;
-            color: var(--text-muted);
-            margin-bottom: 8px;
         }
 
-        .nino-bar-bg {
-            height: 4px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 2px;
-            overflow: hidden;
-        }
-
-        .nino-bar-fill {
-            height: 100%;
-            background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
-            border-radius: 2px;
-            box-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
-            transition: width 1s ease;
-        }
-
-        .card-meta {
-            margin-top: 15px;
-            display: flex;
-            gap: 15px;
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .card-meta i {
-            margin-right: 5px;
-        }
-
-        /* --- BOTTOM NAV --- */
-        .bottom-nav {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: calc(100% - 40px);
-            max-width: 400px;
-            background: rgba(20, 22, 30, 0.9);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--card-border);
-            height: 64px;
-            border-radius: 32px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            z-index: 2000;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-        }
-
-        .nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: var(--text-muted);
-            text-decoration: none;
-            font-size: 10px;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-
-        .nav-item i {
-            font-size: 20px;
-            margin-bottom: 2px;
-        }
-
-        .nav-item.active {
-            color: var(--text-main);
-        }
-
-        .nav-item.active i {
-            color: var(--accent-sevilla);
-        }
-
-        /* --- LOGISTICS VIEW --- */
-        .logistics-grid {
-            display: grid;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        .log-card {
-            background: var(--card-glass);
-            border: 1px solid var(--card-border);
-            border-radius: 20px;
-            padding: 20px;
-        }
-
-        .log-card h3 {
-            font-size: 16px;
-            margin: 0 0 15px;
-            display: flex;
-            align-items: center;
-        }
-
-        .log-card h3 i {
-            margin-right: 10px;
-            opacity: 0.7;
-        }
-
-        /* --- MAP VIEW --- */
-        #map-view {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1500;
-            display: none;
-        }
-
-        #map-container {
-            height: 100%;
-            width: 100%;
-        }
-
-        .close-map {
-            position: absolute;
-            top: 30px;
-            right: 20px;
-            background: var(--bg-dark);
-            color: white;
-            padding: 12px;
-            border-radius: 50%;
-            z-index: 1600;
-            border: 1px solid var(--card-border);
-        }
-
-        /* Responsive Desktop */
-        @media (min-width: 1024px) {
-            main {
-                max-width: 800px;
-            }
-
-            .event-card {
-                display: grid;
-                grid-template-columns: 240px 1fr;
-                height: 240px;
-            }
-
-            .card-img-wrapper {
-                height: 100%;
-            }
-
-            .card-content {
-                padding: 25px;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-            }
-        }
-
-        .hidden {
-            display: none !important;
+        /* Pragmático: Prioridad al texto */
+        .desc-text {
+            font-size: 0.95rem;
+            line-height: 1.5;
+            color: #334155;
         }
     </style>
 </head>
 
-<body>
+<body class="pb-20">
 
-    <div class="blob" id="blob-1"></div>
-    <div class="blob" id="blob-2"></div>
-
-    <header>
-        <div class="header-top">
-            <div class="brand">
-                <p>Estás viendo</p>
-                <h1>Romi in Seville</h1>
+    <!-- HEADER PRAGMÁTICO -->
+    <header class="bg-slate-900 text-white p-6">
+        <div class="max-w-3xl mx-auto flex justify-between items-end">
+            <div>
+                <h1 class="text-2xl font-extrabold tracking-tight">Romi in Seville</h1>
+                <p class="text-slate-400 text-sm font-medium">Cronograma de Viaje: 11 - 27 Feb, 2025</p>
             </div>
-            <div id="countdown"
-                style="font-size: 12px; font-weight: 800; background: var(--card-glass); padding: 5px 12px; border-radius: 12px; border: 1px solid var(--card-border)">
-                --:--
+            <div id="countdown" class="text-right">
+                <span class="block text-[10px] uppercase font-bold text-slate-500">Cuenta atrás</span>
+                <span id="timer" class="text-xl font-mono font-bold text-orange-500">--d --h</span>
             </div>
-        </div>
-
-        <div class="phases-bar">
-            <div class="phase-pill active" data-phase="all" onclick="filterByPhase('all')">Todo</div>
-            <div class="phase-pill" data-phase="phase1" onclick="filterByPhase('phase1')">Sevilla</div>
-            <div class="phase-pill" data-phase="phase2" onclick="filterByPhase('phase2')">Tenerife</div>
-            <div class="phase-pill" data-phase="phase3" onclick="filterByPhase('phase3')">Granada</div>
-        </div>
-
-        <div class="date-scroller" id="date-scroller">
-            <!-- JS Inject -->
         </div>
     </header>
 
-    <main id="main-content">
-        <div id="events-feed">
-            <!-- JS Inject -->
+    <!-- NAVEGACIÓN RÁPIDA -->
+    <nav class="sticky-nav px-4 py-3 mb-6">
+        <div class="max-w-3xl mx-auto flex gap-2 overflow-x-auto no-scrollbar">
+            <button onclick="scrollToSection('logistica')"
+                class="whitespace-nowrap bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-bold shadow-sm flex items-center">
+                <i class="fas fa-suitcase mr-2"></i> Logística
+            </button>
+            <button onclick="scrollToSection('itinerario')"
+                class="whitespace-nowrap bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-md text-sm font-bold hover:bg-slate-50">
+                <i class="fas fa-calendar-alt mr-2"></i> Itinerario
+            </button>
+            <div class="h-8 w-px bg-slate-200 mx-1"></div>
+            <div id="day-selector" class="flex gap-2">
+                <!-- Injected via JS -->
+            </div>
         </div>
+    </nav>
 
-        <div id="logistics-view" class="hidden">
-            <div class="logistics-grid">
-                <!-- Flights -->
-                <div class="log-card">
-                    <h3 style="color: var(--accent-tenerife)"><i class="fas fa-plane"></i> Vuelos Clave</h3>
-                    <div style="font-size: 14px; opacity: 0.8">
-                        <p><strong>16 Feb:</strong> SVQ ➔ TFN (18:25) <span style="float:right">VY3258</span></p>
-                        <p><strong>20 Feb:</strong> TFN ➔ SVQ (20:20) <span style="float:right">VY3259</span></p>
+    <main class="max-w-3xl mx-auto px-4 space-y-10">
+
+        <!-- SECCIÓN LOGÍSTICA (IMPORTANTE) -->
+        <section id="logistica" class="scroll-mt-24">
+            <h2 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-4 flex items-center">
+                <i class="fas fa-info-circle mr-2"></i> Datos de Logística
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Vuelos -->
+                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-sm mb-3 border-b pb-2"><i
+                            class="fas fa-plane mr-2 text-blue-600"></i>Vuelos Confirmados</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center text-sm">
+                            <div>
+                                <span class="font-bold">SVQ ➔ TFN</span>
+                                <p class="text-xs text-slate-500">16 Feb - 18:25h</p>
+                            </div>
+                            <span
+                                class="bg-blue-50 text-blue-700 px-2 py-1 rounded font-mono text-xs font-bold">VY3258</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <div>
+                                <span class="font-bold">TFN ➔ SVQ</span>
+                                <p class="text-xs text-slate-500">20 Feb - 20:20h</p>
+                            </div>
+                            <span
+                                class="bg-blue-50 text-blue-700 px-2 py-1 rounded font-mono text-xs font-bold">VY3259</span>
+                        </div>
                     </div>
                 </div>
-                <!-- Stays -->
-                <div class="log-card">
-                    <h3 style="color: var(--accent-granada)"><i class="fas fa-hotel"></i> Alojamientos</h3>
-                    <div style="font-size: 14px; opacity: 0.8">
-                        <p><strong>Tenerife:</strong> Meliá Costa Atlantis (16-20 Feb)</p>
-                        <p><strong>Granada:</strong> Noche del 23 de Feb</p>
-                    </div>
-                </div>
-                <!-- Food -->
-                <div class="log-card">
-                    <h3 style="color: var(--accent-sevilla)"><i class="fas fa-utensils"></i> Imperdibles</h3>
-                    <div style="font-size: 14px; opacity: 0.8">
-                        <p><strong>Sevilla:</strong> Pizzetari (CC Entre Nasas)</p>
-                        <p><strong>Sevilla:</strong> Bar Triana / El Baratillo</p>
+                <!-- Alojamientos -->
+                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                    <h3 class="font-bold text-slate-800 text-sm mb-3 border-b pb-2"><i
+                            class="fas fa-bed mr-2 text-purple-600"></i>Hoteles / Reservas</h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex gap-3">
+                            <i class="fas fa-hotel text-slate-300 mt-1"></i>
+                            <div>
+                                <p class="font-bold leading-none">Meliá Costa Atlantis</p>
+                                <p class="text-xs text-slate-500 mt-1">Tenerife (16 - 20 Feb)</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <i class="fas fa-home text-slate-300 mt-1"></i>
+                            <div>
+                                <p class="font-bold leading-none">Alojamiento Granada</p>
+                                <p class="text-xs text-slate-500 mt-1">Noche del 23 Feb</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
+
+        <!-- SECCIÓN ITINERARIO -->
+        <section id="itinerario" class="scroll-mt-24">
+            <h2 class="text-sm font-black uppercase tracking-widest text-slate-400 mb-6 flex items-center">
+                <i class="fas fa-list-ul mr-2"></i> Agenda Diaria Paso a Paso
+            </h2>
+
+            <div id="timeline-container" class="space-y-4">
+                <!-- Injected via JS -->
+            </div>
+        </section>
+
     </main>
 
-    <div id="map-view">
-        <button class="close-map" onclick="toggleMap()"><i class="fas fa-times"></i></button>
-        <div id="map-container"></div>
+    <!-- FOOTER NAVEGACIÓN MOBILE-FIRST -->
+    <div
+        class="fixed bottom-4 left-1/2 -translate-x-1/2 w-[90%] max-w-md bg-slate-900/95 backdrop-blur text-white rounded-full p-2 flex justify-between items-center shadow-2xl z-50 border border-slate-700">
+        <button onclick="window.scrollTo({top:0, behavior:'smooth'})"
+            class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-800">
+            <i class="fas fa-arrow-up"></i>
+        </button>
+        <div class="h-6 w-px bg-slate-700"></div>
+        <div class="flex-1 text-center font-bold text-xs uppercase tracking-widest" id="current-day-label">
+            Agenda 2025
+        </div>
+        <div class="h-6 w-px bg-slate-700"></div>
+        <button onclick="scrollToSection('logistica')"
+            class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-slate-800 text-orange-400">
+            <i class="fas fa- suitcase"></i>
+        </button>
     </div>
 
-    <nav class="bottom-nav">
-        <a href="#" class="nav-item active" onclick="showTab('calendar')">
-            <i class="fas fa-calendar-day"></i>
-            <span>Días</span>
-        </a>
-        <a href="#" class="nav-item" onclick="toggleMap()">
-            <i class="fas fa-map-marked-alt"></i>
-            <span>Mapa</span>
-        </a>
-        <a href="#" class="nav-item" onclick="showTab('logistics')">
-            <i class="fas fa-suitcase"></i>
-            <span>Logística</span>
-        </a>
-    </nav>
-
     <script>
-        const TRIP_CONFIG = {
-            phase1: { color: 'var(--accent-sevilla)', blob: '#ff7e5f' },
-            phase2: { color: 'var(--accent-tenerife)', blob: '#00d2ff' },
-            phase3: { color: 'var(--accent-granada)', blob: '#ff416c' }
-        };
-
-        const PHOTOS = {
-            sevilla: "https://images.unsplash.com/photo-1550355291-64384e5b47a5?auto=format&fit=crop&w=800",
-            triana: "https://images.unsplash.com/photo-1562678608-2503250269f8?auto=format&fit=crop&w=800",
-            italica: "https://images.unsplash.com/photo-1564750974070-e478202d6b7b?auto=format&fit=crop&w=800",
-            cadiz: "https://images.unsplash.com/photo-1596443686812-2f45229eebc3?auto=format&fit=crop&w=800",
-            tenerife: "https://images.unsplash.com/photo-1543854589-3ae8e684eb2e?auto=format&fit=crop&w=800",
-            carnaval: "https://images.unsplash.com/photo-1551696054-c9182379532e?auto=format&fit=crop&w=800",
-            granada: "https://images.unsplash.com/photo-1620668078864-a53c51873111?auto=format&fit=crop&w=800",
-            alhambra: "https://images.unsplash.com/photo-1598387063462-2b63486c8d0e?auto=format&fit=crop&w=800",
-            travel: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=800",
-            party: "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=800"
-        };
-
-        const allEvents = [
-            { id: 11, phase: 'phase1', day: "11 Feb", title: "Llegada", desc: "Llegada a Santa Justa (20:00). Comienza la aventura.", icon: "fa-train", loc: "Sevilla", food: "Libre", kids: 3, type: "Llegada", img: PHOTOS.sevilla },
-            { id: 12, phase: 'phase1', day: "12 Feb", title: "Triana y Relax", desc: "Paseo por el barrio, tarde de juegos y cena deliciosa.", icon: "fa-guitar", loc: "Triana", food: "Pizzetari", kids: 5, type: "Cultura", img: PHOTOS.triana },
-            { id: 13, phase: 'phase1', day: "13 Feb", title: "Itálica y Saltos", desc: "Historia romana por la mañana y adrenalina por la tarde.", icon: "fa-monument", loc: "Santiponce", food: "La Choza", kids: 5, type: "Activo", img: PHOTOS.italica },
-            { id: 14, phase: 'phase1', day: "14 Feb", title: "Cádiz", desc: "Día de playa, salitre y el mejor pescadito frito del mundo.", icon: "fa-water", loc: "Cádiz", food: "Freiduría", kids: 5, type: "Excursión", img: PHOTOS.cadiz },
-            { id: 15, phase: 'phase1', day: "15 Feb", title: "Sevilla Monumental", desc: "Alcázar y Plaza España. Lo mejor de la capital.", icon: "fa-camera", loc: "Centro", food: "El Baratillo", kids: 4, type: "Cultura", img: PHOTOS.sevilla },
-            { id: 16, phase: 'phase2', day: "16 Feb", title: "Vuelo a Tenerife", desc: "Rumbo a las islas para disfrutar del Carnaval.", icon: "fa-plane-departure", loc: "Puerto Cruz", food: "Hotel", kids: 3, type: "Vuelo", img: PHOTOS.travel },
-            { id: 17, phase: 'phase2', day: "17 Feb", title: "Carnaval", desc: "Coso Apoteosis y mucho ritmo canario.", icon: "fa-mask", loc: "Puerto Cruz", food: "Guachinche", kids: 5, type: "Fiesta", img: PHOTOS.carnaval },
-            { id: 18, phase: 'phase2', day: "18 Feb", title: "Parque Acuático", desc: "Toboganes y diversión en Siam Park.", icon: "fa-swimmer", loc: "Costa Adeje", food: "Parque", kids: 5, type: "Activo", img: PHOTOS.tenerife },
-            { id: 19, phase: 'phase2', day: "19 Feb", title: "Relax y Spa", desc: "Necesario descanso en el Meliá Atlantis.", icon: "fa-spa", loc: "Meliá Costa Atlantis", food: "Hotel", kids: 4, type: "Relax", img: PHOTOS.tenerife },
-            { id: 20, phase: 'phase2', day: "20 Feb", title: "Regreso a Sevilla", desc: "Últimos baños y vuelo nocturno.", icon: "fa-plane-arrival", loc: "Lago Martiánez", food: "Zona Lago", kids: 5, type: "Vuelo", img: PHOTOS.travel },
-            { id: 21, phase: 'phase3', day: "21 Feb", title: "Acuario", desc: "Explorando la vida marina en el Muelle de las Delicias.", icon: "fa-fish", loc: "Sevilla", food: "Río", kids: 5, type: "Relax", img: PHOTOS.sevilla },
-            { id: 22, phase: 'phase3', day: "22 Feb", title: "Cirque du Soleil", desc: "Magia y acrobacias en el Muelle NY.", icon: "fa-ticket-alt", loc: "Muelle NY", food: "Picoteo", kids: 4, type: "Fiesta", img: PHOTOS.party },
-            { id: 23, phase: 'phase3', day: "23 Feb", title: "Rumbo a Granada", desc: "Viaje por carretera y relax en termas.", icon: "fa-car", loc: "Granada", food: "Tapas", kids: 2, type: "Viaje", img: PHOTOS.travel },
-            { id: 24, phase: 'phase3', day: "24 Feb", title: "Alhambra y Cumple", desc: "Día mágico en el palacio y celebración final.", icon: "fa-birthday-cake", loc: "Granada", food: "Cumpleaños", kids: 3, type: "Fiesta", img: PHOTOS.alhambra },
-            { id: 25, phase: 'phase3', day: "25 Feb", title: "Bolos y Recuperación", desc: "Tarde de Bowling y relax post-viaje.", icon: "fa-bowling-ball", loc: "Dos Hermanas", food: "Entre Nasas", kids: 4, type: "Activo", img: PHOTOS.sevilla },
-            { id: 26, phase: 'phase3', day: "26 Feb", title: "Cena Despedida", desc: "Último paseo por las Setas y cena final.", icon: "fa-users", loc: "Centro", food: "Cena Especial", kids: 3, type: "Cultura", img: PHOTOS.triana },
-            { id: 27, phase: 'phase3', day: "27 Feb", title: "Fin del Viaje", desc: "Regreso a casa con la maleta llena de recuerdos.", icon: "fa-check", loc: "-", food: "-", kids: 1, type: "Fin", img: PHOTOS.travel }
+        const TRIP_DATA = [
+            // FASE 1: SEVILLA
+            { id: 11, phase: 1, color: '#f97316', day: "11 Feb", title: "Llegada", desc: "Llegada a Santa Justa (20:00).", loc: "Estación Santa Justa", food: "Libre", kids: 3, icon: "fa-train" },
+            { id: 12, phase: 1, color: '#f97316', day: "12 Feb", title: "Triana y Relax", desc: "Paseo por Triana. Tarde de juegos. Cena en Pizzetari.", loc: "Triana / CC Entre Nasas", food: "Pizzetari", kids: 5, icon: "fa-guitar" },
+            { id: 13, phase: 1, color: '#f97316', day: "13 Feb", title: "Itálica y Saltos", desc: "Ruinas romanas y Sevilla Jump.", loc: "Santiponce / Camas", food: "La Choza de Manuela", kids: 5, icon: "fa-monument" },
+            { id: 14, phase: 1, color: '#f97316', day: "14 Feb", title: "Cádiz", desc: "Excursión a la playa y pescadito frito.", loc: "Cádiz Capital", food: "Freiduría", kids: 5, icon: "fa-water" },
+            { id: 15, phase: 1, color: '#f97316', day: "15 Feb", title: "Sevilla Monumental", desc: "Alcázar, Catedral y Plaza España.", loc: "Centro Sevilla", food: "El Baratillo", kids: 4, icon: "fa-camera" },
+            // FASE 2: TENERIFE
+            { id: 16, phase: 2, color: '#2563eb', day: "16 Feb", title: "Vuelo a TFN", desc: "Salida 18:25. Llegada y Dragnaval.", loc: "Aeropuerto / Puerto Cruz", food: "Hotel", kids: 3, icon: "fa-plane-departure" },
+            { id: 17, phase: 2, color: '#2563eb', day: "17 Feb", title: "Carnaval", desc: "Paseo San Telmo y Coso Apoteosis.", loc: "Puerto de la Cruz", food: "Local", kids: 5, icon: "fa-mask" },
+            { id: 18, phase: 2, color: '#2563eb', day: "18 Feb", title: "Parque Acuático", desc: "Aqualand o Siam Park.", loc: "Costa Adeje", food: "En Parque", kids: 5, icon: "fa-swimmer" },
+            { id: 19, phase: 2, color: '#2563eb', day: "19 Feb", title: "Relax y Spa", desc: "Día de descanso en hotel y Spa.", loc: "Meliá Costa Atlantis", food: "Hotel", kids: 4, icon: "fa-spa" },
+            { id: 20, phase: 2, color: '#2563eb', day: "20 Feb", title: "Regreso", desc: "Lago Martiánez y Vuelo a Sevilla.", loc: "Lago Martiánez", food: "Zona Lago", kids: 5, icon: "fa-plane-arrival" },
+            // FASE 3: GRANADA / FINAL
+            { id: 21, phase: 3, color: '#dc2626', day: "21 Feb", title: "Acuario", desc: "Acuario de Sevilla y Parque Magallanes.", loc: "Muelle Delicias", food: "Zona Río", kids: 5, icon: "fa-fish" },
+            { id: 22, phase: 3, color: '#dc2626', day: "22 Feb", title: "Circo y Copas", desc: "Muelle NY y Cirque du Soleil.", loc: "Muelle NY", food: "Picoteo", kids: 4, icon: "fa-ticket-alt" },
+            { id: 23, phase: 3, color: '#dc2626', day: "23 Feb", title: "Rumbo a Granada", desc: "Coche a Granada y Termas.", loc: "Granada", food: "Tapas", kids: 2, icon: "fa-car" },
+            { id: 24, phase: 3, color: '#dc2626', day: "24 Feb", title: "Alhambra y Cumple", desc: "Visita Alhambra. Cena Cumpleaños en Sevilla.", loc: "Granada / Sevilla", food: "Cena Cumple", kids: 3, icon: "fa-birthday-cake" },
+            { id: 25, phase: 3, color: '#dc2626', day: "25 Feb", title: "Gym y Bolos", desc: "Recuperación y Bowling.", loc: "Dos Hermanas", food: "Entre Nasas", kids: 4, icon: "fa-bowling-ball" },
+            { id: 26, phase: 3, color: '#dc2626', day: "26 Feb", title: "Despedida", desc: "Triana, Setas y Cena Final.", loc: "Centro / Triana", food: "Cena Despedida", kids: 3, icon: "fa-users" },
+            { id: 27, phase: 3, color: '#dc2626', day: "27 Feb", title: "Fin del Viaje", desc: "Regreso a casa.", loc: "-", food: "-", kids: 1, icon: "fa-check" }
         ];
 
-        let currentMap = null;
-
-        // --- INIT ---
         document.addEventListener('DOMContentLoaded', () => {
-            renderDateScroller();
-            renderEvents('all');
+            renderTimeline();
+            renderDaySelector();
             initCountdown();
         });
 
-        // --- RENDERERS ---
-        function renderDateScroller() {
-            const container = document.getElementById('date-scroller');
-            container.innerHTML = allEvents.map(evt => `
-                <div class="date-item" id="date-item-${evt.id}" onclick="scrollToEvent(${evt.id})">
-                    <span class="day-month">${evt.day.split(' ')[1]}</span>
-                    <span class="day-num">${evt.day.split(' ')[0]}</span>
+        function renderTimeline() {
+            const container = document.getElementById('timeline-container');
+            container.innerHTML = TRIP_DATA.map(evt => `
+                <div id="day-${evt.id}" class="day-card p-4 flex gap-4 scroll-mt-32">
+                    <div class="w-1 phase-indicator" style="background-color: ${evt.color}"></div>
+                    <div class="flex-1">
+                        <div class="flex justify-between items-start mb-1">
+                            <div>
+                                <span class="text-[11px] font-black uppercase tracking-wider" style="color: ${evt.color}">${evt.day}</span>
+                                <h3 class="text-lg font-bold text-slate-900 leading-tight">${evt.title}</h3>
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-400">
+                                <i class="fas ${evt.icon}"></i>
+                            </div>
+                        </div>
+                        
+                        <p class="desc-text mb-4 mt-2 font-medium">${evt.desc}</p>
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                             <div class="flex items-center text-[11px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                                <i class="fas fa-map-pin w-4 text-red-400 mr-2"></i>
+                                <span class="truncate"><strong>LUGAR:</strong> ${evt.loc}</span>
+                            </div>
+                            <div class="flex items-center text-[11px] text-slate-500 bg-slate-50 p-2 rounded border border-slate-100">
+                                <i class="fas fa-utensils w-4 text-orange-400 mr-2"></i>
+                                <span class="truncate"><strong>COMIDA:</strong> ${evt.food}</span>
+                            </div>
+                        </div>
+
+                        <!-- Niñómetro Pragmático -->
+                        <div class="mt-3 flex items-center gap-3">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase">Niñómetro</span>
+                            <div class="flex-1 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-slate-400" style="width: ${(evt.kids / 5) * 100}%"></div>
+                            </div>
+                            <span class="text-[10px] font-bold text-slate-500">${evt.kids}/5</span>
+                        </div>
+                    </div>
                 </div>
             `).join('');
         }
 
-        function renderEvents(filterPhase) {
-            const feed = document.getElementById('events-feed');
-            const events = filterPhase === 'all' ? allEvents : allEvents.filter(e => e.phase === filterPhase);
-
-            feed.innerHTML = events.map((evt, index) => {
-                const accent = TRIP_CONFIG[evt.phase].color;
-                const progressPct = (evt.kids / 5) * 100;
-
-                return `
-                <div class="event-card" id="event-${evt.id}" style="animation-delay: ${index * 0.1}s">
-                    <div class="card-img-wrapper">
-                        <img src="${evt.img}" alt="${evt.title}">
-                        <div class="card-img-overlay">
-                            <span class="card-type" style="background: ${accent}">${evt.type}</span>
-                            <h3 class="card-title">${evt.title}</h3>
-                        </div>
-                    </div>
-                    <div class="card-content">
-                        <p class="card-desc">${evt.desc}</p>
-                        
-                        <div class="ninometro-container">
-                            <div class="nino-header">
-                                <span><i class="fas fa-bolt"></i> Energía Familiar</span>
-                                <span>${evt.kids}/5</span>
-                            </div>
-                            <div class="nino-bar-bg">
-                                <div class="nino-bar-fill" style="width: ${progressPct}%; background: ${accent}; box-shadow: 0 0 10px ${accent}"></div>
-                            </div>
-                        </div>
-
-                        <div class="card-meta">
-                            <span><i class="fas fa-map-marker-alt"></i> ${evt.loc}</span>
-                            <span><i class="fas fa-utensils"></i> ${evt.food}</span>
-                        </div>
-                    </div>
-                </div>
-            `}).join('');
+        function renderDaySelector() {
+            const container = document.getElementById('day-selector');
+            container.innerHTML = TRIP_DATA.map(evt => `
+                <button onclick="scrollToSection('day-${evt.id}')" class="w-10 h-10 flex-shrink-0 rounded-md border border-slate-200 bg-white text-xs font-bold flex flex-col items-center justify-center hover:bg-slate-50 active:scale-95 transition-all">
+                    <span class="text-[9px] text-slate-400">${evt.day.split(' ')[1]}</span>
+                    <span>${evt.day.split(' ')[0]}</span>
+                </button>
+            `).join('');
         }
 
-        // --- ACTIONS ---
-        function filterByPhase(phase) {
-            // Update Pills
-            document.querySelectorAll('.phase-pill').forEach(p => p.classList.remove('active'));
-            document.querySelector(`[data-phase="${phase}"]`).classList.add('active');
-
-            // Background Blobs
-            if (phase !== 'all') {
-                document.getElementById('blob-1').style.background = TRIP_CONFIG[phase].blob;
-            }
-
-            renderEvents(phase);
-        }
-
-        function scrollToEvent(id) {
-            document.querySelectorAll('.date-item').forEach(d => d.classList.remove('active'));
-            document.getElementById(`date-item-${id}`).classList.add('active');
-
-            const element = document.getElementById(`event-${id}`);
-            if (element) {
-                const headerOffset = 180;
-                const elementPosition = element.getBoundingClientRect().top;
-                const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
-
-                window.scrollTo({
-                    top: offsetPosition,
-                    behavior: "smooth"
-                });
-            }
-        }
-
-        function showTab(tab) {
-            // Update Nav
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-
-            if (tab === 'calendar') {
-                document.getElementById('events-feed').classList.remove('hidden');
-                document.getElementById('logistics-view').classList.add('hidden');
-            } else {
-                document.getElementById('events-feed').classList.add('hidden');
-                document.getElementById('logistics-view').classList.remove('hidden');
-            }
-        }
-
-        function toggleMap() {
-            const mapView = document.getElementById('map-view');
-            if (mapView.style.display === 'block') {
-                mapView.style.display = 'none';
-            } else {
-                mapView.style.display = 'block';
-                initMap();
-            }
-        }
-
-        function initMap() {
-            if (currentMap) return;
-            currentMap = L.map('map-container', { zoomControl: false }).setView([37.38, -5.98], 6);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                attribution: ''
-            }).addTo(currentMap);
-
-            allEvents.forEach(evt => {
-                // Simplified markers
-                if (evt.loc !== '-') {
-                    // Logic to add markers could go here with real coords
+        function scrollToSection(id) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth' });
+                // Update current label
+                if (id.startsWith('day-')) {
+                    document.getElementById('current-day-label').innerText = "Día " + id.split('-')[1] + " Feb";
+                } else if (id === 'logistica') {
+                    document.getElementById('current-day-label').innerText = "LOGÍSTICA";
                 }
-            });
+            }
         }
 
         function initCountdown() {
@@ -696,31 +282,24 @@
             setInterval(() => {
                 const now = new Date().getTime();
                 const dist = target - now;
-                const el = document.getElementById('countdown');
+                const timerEl = document.getElementById('timer');
                 if (dist < 0) {
-                    el.innerText = "EN VIAJE 🚀";
-                    el.style.color = "var(--accent-sevilla)";
+                    timerEl.innerText = "¡EN VIAJE!";
                 } else {
                     const d = Math.floor(dist / (1000 * 60 * 60 * 24));
                     const h = Math.floor((dist % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                    el.innerText = `FALTAN ${d}D ${h}H`;
+                    timerEl.innerText = `${d}d ${h}h`;
                 }
             }, 1000);
         }
 
-        // Observer for scroll-linked date scroller
+        // Highlight active day in nav while scrolling
         window.addEventListener('scroll', () => {
-            const items = document.querySelectorAll('.event-card');
-            items.forEach(item => {
-                const rect = item.getBoundingClientRect();
-                if (rect.top > 0 && rect.top < 300) {
-                    const id = item.id.split('-')[1];
-                    document.querySelectorAll('.date-item').forEach(d => d.classList.remove('active'));
-                    const dot = document.getElementById(`date-item-${id}`);
-                    if (dot) {
-                        dot.classList.add('active');
-                        dot.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                    }
+            TRIP_DATA.forEach(evt => {
+                const el = document.getElementById(`day-${evt.id}`);
+                const rect = el.getBoundingClientRect();
+                if (rect.top > 0 && rect.top < 400) {
+                    document.getElementById('current-day-label').innerText = "Viendo: " + evt.day;
                 }
             });
         });
